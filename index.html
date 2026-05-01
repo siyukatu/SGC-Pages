@@ -104,8 +104,14 @@
                 const response = await fetch('https://api.sharkbot.xyz/sgc/status');
                 let bots = await response.json();
 
+                const score = bot =>
+                    bot.status === "offline" ? -1 : (bot.channel_count ?? 0);
+
                 bots.sort((a, b) => {
-                    return (b.status === "offline" ? -1 : (b.channel_count || 0)) - (a.status === "offline" ? -1 : (a.channel_count || 0));
+                    const s = score(b) - score(a);
+                    if (s !== 0) return s;
+
+                    return Number(a.id) - Number(b.id);
                 });
                 
                 container.innerHTML = ''; 
