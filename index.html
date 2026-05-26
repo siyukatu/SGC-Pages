@@ -97,25 +97,26 @@
     </main>
 
     <script type="module">
-        let timestamp = 0;
+        let timestamp = null;
         let stream = null;
         function connectStream() {
-            stream = new EventSource("https://public-api.siyukatu.com/time/events?interval=1000").addEventListener("time", event => {
+            stream = new EventSource("https://public-api.siyukatu.com/time/events?interval=1000");
+            stream.addEventListener("time", event => {
                 timestamp = Number(event.data);
             });
-            stream.onerror = () => {
+            stream.addEventListener("error", () => {
                 console.error("Stream connection error.");
                 stream.close();
-            };
-            stream.onclose = () => {
+            });
+            stream.addEventListener("close", () => {
                 console.warn("Stream connection closed. Reconnecting...");
                 setTimeout(connectStream, 5000);
-            };
+            });
         };
         connectStream();
         let signal = null;
         let status = {};
-        function fetchStatus() {
+        async function fetchStatus() {
             const container = document.getElementById('bot-container');
             const countLabel = document.getElementById('bot-count');
             const channelCountLabel = document.getElementById('channel-count');
@@ -133,7 +134,7 @@
                     });
                     const data = await response.json();
                     if (data.success !== true) throw new Error('API returned unsuccessful response');
-                    if (data.timestamp && timestamp - data.timestamp > 60000) {
+                    if (timestamp !== null && data.timestamp && (timestamp / 1000) - data.timestamp > 60) {
                         console.warn(`Data from ${api} is too old. Ignoring.`);
                         return;
                     }
@@ -142,25 +143,25 @@
                     const score = bot =>
                         !bot.is_online ? -1 : (bot.channel_count ?? 0);
 
-                    bots.sort((a, b) => {
-                        const s = score(b) - score(a);
-                        if (s !== 0) return s;
-
-                        return Number(a.id) - Number(b.id);
-                    });
-
                     for (const bot of bots) {
                         const last_update = bot.last_update !== undefined ? bot.last_update ?? 0 : -1;
                         if (status[bot.id] && status[bot.id].last_update > last_update) continue;
                         status[bot.id] = bot;
                     }
 
+                    const statusBots = Object.values(status);
+                    statusBots.sort((a, b) => {
+                        const s = score(b) - score(a);
+                        if (s !== 0) return s;
+
+                        return Number(a.id) - Number(b.id);
+                    });
+
                     container.innerHTML = ''; 
-                    countLabel.innerText = `${bots.length} 個`;
+                    countLabel.innerText = `${statusBots.length} 個`;
 
                     let channelCount = 0;
-                    Object.keys(status).forEach(id => {
-                        const bot = status[id];
+                    statusBots.forEach(bot => {
                         const statusClass = `bg-${bot.is_online ? 'online' : 'offline'}`;
                         const textClass = bot.is_online ? 'text-online' : 'text-offline';
                         const statusJa = bot.is_online === 'online' ? 'オンライン' : 'オフライン';
@@ -171,7 +172,7 @@
                         }
 
                         const link = document.createElement('a');
-                        link.href = bot.link ?? `https://discord.com/oauth2/authorize?client_id=${id}&permissions=8&integration_type=0&scope=bot+applications.commands`;
+                        link.href = bot.link ?? `https://discord.com/oauth2/authorize?client_id=${bot.id}&permissions=8&integration_type=0&scope=bot+applications.commands`;
                         link.target = "_blank";
                         const card = document.createElement('div');
                         card.className = "discord-card p-4 flex items-center gap-4 shadow-sm";
@@ -221,7 +222,7 @@
                         }
                         const idLabel = document.createElement('p');
                         idLabel.className = "text-[10px] text-[#949ba4] font-mono mt-1 opacity-50 truncate";
-                        idLabel.innerText = `ID: ${id}`;
+                        idLabel.innerText = `ID: ${bot.id}`;
                         infoDiv.appendChild(nameDiv);
                         infoDiv.appendChild(statusDiv);
                         infoDiv.appendChild(idLabel);
