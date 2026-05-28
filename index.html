@@ -167,8 +167,8 @@
                         const textClass = bot.is_online ? 'text-online' : 'text-offline';
                         const statusJa = bot.is_online ? 'オンライン' : 'オフライン';
                         
-                        let channelDisplay = bot.channel_count !== undefined ? bot.channel_count.toLocaleString() : '0';
-                        if (bot.channel_count !== undefined) {
+                        let channelDisplay = bot.channel_count ? bot.channel_count.toString() : '0';
+                        if (bot.channel_count) {
                             channelCount += bot.channel_count;
                         }
 
